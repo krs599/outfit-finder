@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Outfit Finder">
+  <title>Outfit Finder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #110e0a; color: #e8dcc8; font-family: 'Lato', sans-serif; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #1a1510; }
+    ::-webkit-scrollbar-thumb { background: #3a3020; border-radius: 2px; }
+
+    /* ── PIN SCREEN ── */
+    #pin-screen {
+      position: fixed; inset: 0; background: #110e0a;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999; padding: 40px 24px;
+    }
+    .pin-sub { font-size: 10px; letter-spacing: 0.2em; color: #6a5f4e; text-transform: uppercase; margin-bottom: 8px; }
+    #pin-screen h2 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 700; color: #e8dcc8; margin-bottom: 32px; }
+    .pin-dots { display: flex; gap: 14px; margin-bottom: 32px; }
+    .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #3a3020; background: transparent; transition: all 0.2s; }
+    .pin-dot.filled { background: #c8a852; border-color: #c8a852; }
+    .pin-dot.error { background: #c0392b; border-color: #c0392b; }
+    .pin-dots.shake { animation: shake 0.4s ease; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 240px; }
+    .pin-btn {
+      height: 64px; border-radius: 12px;
+      border: 1.5px solid #2e2820; background: #1a1510;
+      color: #e8dcc8; font-size: 22px; font-weight: 300;
+      font-family: 'Cormorant Garamond', serif;
+      cursor: pointer; transition: all 0.15s; -webkit-appearance: none;
+    }
+    .pin-btn:active { background: rgba(200,168,82,0.15); border-color: #c8a852; color: #c8a852; }
+    .pin-btn.del { font-size: 16px; color: #6a5f4e; }
+    .pin-error { color: #c0392b; font-size: 12px; margin-top: 16px; letter-spacing: 0.05em; min-height: 18px; text-align: center; }
+
+    /* ── APP ── */
+    #app { display: none; }
+
+    #header {
+      border-bottom: 1px solid rgba(200,168,82,0.15);
+      padding: max(28px, env(safe-area-inset-top, 28px)) 20px 18px;
+      background: linear-gradient(180deg, #1a1410 0%, #110e0a 100%);
+      position: sticky; top: 0; z-index: 10;
+    }
+    #header .sub { font-size: 10px; letter-spacing: 0.2em; color: #6a5f4e; text-transform: uppercase; margin-bottom: 4px; }
+    #header h1 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 700; color: #e8dcc8; line-height: 1.1; margin-bottom: 4px; }
+    #header .count { font-size: 12px; color: #5a5040; }
+    #main { max-width: 720px; margin: 0 auto; padding: 16px 14px max(24px, env(safe-area-inset-bottom, 24px)); }
+    .section-label { font-size: 10px; letter-spacing: 0.15em; color: #5a5040; text-transform: uppercase; margin-bottom: 8px; }
+    .chips-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
+    .chip {
+      padding: 7px 14px; border-radius: 24px;
+      border: 1.5px solid #2e2820; background: transparent;
+      color: #7a6f5e; font-size: 13px; font-family: 'Lato', sans-serif;
+      letter-spacing: 0.04em; cursor: pointer; transition: all 0.2s;
+      white-space: nowrap; -webkit-appearance: none;
+    }
+    .chip.active { border-color: #c8a852; background: rgba(200,168,82,0.15); color: #c8a852; }
+    .filter-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .reset-btn { background: none; border: none; color: #7a6f5e; font-size: 12px; cursor: pointer; letter-spacing: 0.05em; font-family: 'Lato', sans-serif; }
+    .filter-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .filter-btn {
+      padding: 8px 14px; border-radius: 8px;
+      border: 1.5px solid #2e2820; background: #1a1510;
+      color: #6a5f4e; font-size: 13px; cursor: pointer;
+      font-family: 'Lato', sans-serif; display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s; -webkit-appearance: none;
+    }
+    .filter-btn.open { border-color: #c8a852; background: rgba(200,168,82,0.12); color: #c8a852; }
+    .filter-btn.set { border-color: rgba(200,168,82,0.4); background: rgba(200,168,82,0.06); color: #a89060; }
+    .dropdown {
+      background: #1a1510; border: 1px solid #2e2820;
+      border-radius: 10px; padding: 12px 12px;
+      margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 7px;
+      animation: fadeUp 0.15s ease both;
+    }
+    .active-summary {
+      background: rgba(200,168,82,0.06); border: 1px solid rgba(200,168,82,0.15);
+      border-radius: 8px; padding: 9px 12px; margin-bottom: 14px;
+      font-size: 12px; color: #9a8e7c;
+    }
+    .active-summary strong { color: #c8a852; }
+    .cards { display: flex; flex-direction: column; gap: 11px; }
+    .card {
+      border-radius: 12px; padding: 16px 16px; position: relative;
+      display: flex; flex-direction: column; gap: 9px;
+      animation: fadeUp 0.3s ease both;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .card.gold { border-color: rgba(212,175,55,0.3); background: rgba(212,175,55,0.12); }
+    .card.silver { background: rgba(200,168,82,0.10); }
+    .card.bronze { background: rgba(160,149,110,0.10); }
+    .card.base { background: rgba(139,128,112,0.08); }
+    .top-badge {
+      position: absolute; top: -1px; right: 14px;
+      background: #d4af37; color: #1a1209;
+      font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+      padding: 3px 9px; border-radius: 0 0 6px 6px;
+      font-family: 'Lato', sans-serif;
+    }
+    .card-meta { display: flex; justify-content: space-between; align-items: center; }
+    .card-rank { font-size: 10px; color: #5a5040; letter-spacing: 0.1em; text-transform: uppercase; }
+    .card-anlass { font-size: 11px; color: #7a6f5e; text-align: right; max-width: 55%; }
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .tag { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 7px; padding: 4px 9px; font-size: 11px; color: #c8bba8; }
+    .rating-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .rating-track { flex: 1; height: 4px; background: #2a2420; border-radius: 2px; overflow: hidden; }
+    .rating-fill { height: 100%; border-radius: 2px; }
+    .rating-label { font-size: 13px; font-weight: 700; min-width: 40px; font-family: 'Cormorant Garamond', serif; }
+    .kommentar { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; color: #9a8e7c; line-height: 1.5; border-left: 2px solid rgba(200,168,82,0.25); padding-left: 10px; }
+    .empty { text-align: center; padding: 60px 0; color: #4a4030; }
+    .empty .icon { font-size: 38px; margin-bottom: 10px; }
+    .empty p { font-family: 'Cormorant Garamond', serif; font-size: 17px; margin-bottom: 12px; }
+    .empty button { padding: 8px 20px; border-radius: 20px; border: 1px solid #3a3020; background: transparent; color: #7a6f5e; cursor: pointer; font-size: 13px; font-family: 'Lato', sans-serif; }
+    .footer { text-align: center; margin-top: 28px; font-size: 10px; color: #3a3020; letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div class="pin-sub">Wardrobe Intelligence</div>
+  <h2>PIN eingeben</h2>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot"></div>
+    <div class="pin-dot"></div>
+    <div class="pin-dot"></div>
+    <div class="pin-dot"></div>
+    <div class="pin-dot"></div>
+    <div class="pin-dot"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2</button>
+    <button class="pin-btn" onclick="pinPress('3')">3</button>
+    <button class="pin-btn" onclick="pinPress('4')">4</button>
+    <button class="pin-btn" onclick="pinPress('5')">5</button>
+    <button class="pin-btn" onclick="pinPress('6')">6</button>
+    <button class="pin-btn" onclick="pinPress('7')">7</button>
+    <button class="pin-btn" onclick="pinPress('8')">8</button>
+    <button class="pin-btn" onclick="pinPress('9')">9</button>
+    <button class="pin-btn" onclick="pinPress('0')" style="grid-column:2">0</button>
+    <button class="pin-btn del" onclick="pinDelete()">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- APP (hidden until PIN unlocked) -->
+<div id="app">
+  <div id="header">
+    <div class="sub">Wardrobe Intelligence</div>
+    <h1>Outfit Finder</h1>
+    <div class="count" id="count-text"></div>
+  </div>
+  <div id="main">
+    <div class="section-label">Kategorie</div>
+    <div class="chips-row" id="kategorie-chips"></div>
+    <div class="filter-header">
+      <div class="section-label" style="margin:0">Filter</div>
+      <button class="reset-btn" id="reset-btn" style="display:none">✕ Zurücksetzen</button>
+    </div>
+    <div class="filter-btns" id="filter-btns"></div>
+    <div id="dropdown-container"></div>
+    <div id="active-summary"></div>
+    <div class="cards" id="cards"></div>
+    <div class="empty" id="empty" style="display:none">
+      <div class="icon">🧥</div>
+      <p>Keine Kombinationen gefunden</p>
+      <button onclick="resetAll()">Filter zurücksetzen</button>
+    </div>
+    <div class="footer" id="footer-text"></div>
+  </div>
+</div>
+
+<script>
+// ── PIN LOGIC ──
+const PIN = '591200';
+let pinInput = '';
+
+function pinPress(d) {
+  if (pinInput.length >= PIN.length) return;
+  pinInput += d;
+  updateDots();
+  if (pinInput.length === PIN.length) setTimeout(checkPin, 120);
+}
+function pinDelete() {
+  pinInput = pinInput.slice(0, -1);
+  updateDots();
+  document.getElementById('pin-error').textContent = '';
+  document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('error'));
+}
+function updateDots() {
+  document.querySelectorAll('.pin-dot').forEach((d, i) => {
+    d.classList.toggle('filled', i < pinInput.length);
+    d.classList.remove('error');
+  });
+}
+function checkPin() {
+  if (pinInput === PIN) {
+    document.getElementById('pin-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    render();
+  } else {
+    const dotsEl = document.getElementById('pin-dots');
+    document.querySelectorAll('.pin-dot').forEach(d => { d.classList.remove('filled'); d.classList.add('error'); });
+    dotsEl.classList.add('shake');
+    document.getElementById('pin-error').textContent = 'Falscher PIN – bitte erneut versuchen';
+    setTimeout(() => {
+      dotsEl.classList.remove('shake');
+      document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('error'));
+      document.getElementById('pin-error').textContent = '';
+      pinInput = '';
+    }, 800);
+  }
+}
+
+// ── APP DATA ──
+const outfits = [
+
+  // ═══════════════════════════════════════
+  // OLD MONEY – Quiet Luxury Looks
+  // ═══════════════════════════════════════
+  { id:1, oberteil:"Weißes Hemd", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Date · Sommerabend · Urlaub", kommentar:"Der definitive Old-Money-Look: Weiß auf Beige mit cremefarbenem Wildleder-Loafer. Keine Logos, keine Ablenkung – reine Eleganz. Wirkt wie Capri oder Portofino an einem Dienstagabend.", kategorie:"Old Money" },
+  { id:2, oberteil:"Tommy Olive Leinenhemd", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Sommerterrasse · Resort", kommentar:"Olive Leinen auf Beige mit Cream-Loafer ist puristisches Quiet Luxury. Kein Kontrast, keine Spannung – alles fließt in warmen Erdtönen. Wirkt wie ein Urlaubsoutfit aus einem Italian-Summer-Film.", kategorie:"Old Money" },
+  { id:3, oberteil:"Weiß-gestreiftes Hemd", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Business Casual · Yacht", kommentar:"Feine Streifen auf Beige mit Cream-Loafer – das ist nautischer Old-Money-Stil. Diskret, hochwertig, zeitlos. Die Streifen geben dem Look gerade genug Persönlichkeit ohne aufzufallen.", kategorie:"Old Money" },
+  { id:4, oberteil:"Hellblaues Hemd", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Sommerabend · Urlaub", kommentar:"Eisblau und Beige mit Cream-Loafer – klassischer Riviera-Look. Hellblau ist die universelle Old-Money-Farbe: frisch, klar und nie aufdringlich. Funktioniert perfekt für Abendessen im Freien.", kategorie:"Old Money" },
+  { id:5, oberteil:"Tommy Olive Leinenhemd", hose:"Beige Chino", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.5, anlass:"Casual Chic · Date · Urlaub", kommentar:"Vollständig in Erdtönen – Olive, Beige, Beige. Die Monochromatik verleiht Tiefe ohne Aufwand. Hilfiger Loafer ist relaxter als BOSS, was dem Look eine entspannte Luxury-Energie gibt.", kategorie:"Old Money" },
+  { id:6, oberteil:"Weißes Hemd", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Sommer-Date · Dinner · Rooftop · Event", kommentar:"Weiß auf Hellblau mit Cream-Loafer ist das perfekte Sommer-Trifecta. Die drei Töne – Weiß, Hellblau, Cream – harmonieren wie ein gut komponiertes Gemälde. Absolute Top-Empfehlung.", kategorie:"Old Money" },
+  { id:7, oberteil:"Hellblaues Hemd", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Business Casual · Dinner · Event", kommentar:"Zwei kühle Töne – Eisblau und Hellgrau – mit cremefarbenem Loafer als warmem Ankerpunkt. Sehr sophisticated, wirkt teuer ohne laut zu sein. Ideal wenn man elegant aber nicht overdressed aussehen möchte.", kategorie:"Old Money" },
+  { id:8, oberteil:"Weiß-gestreiftes Hemd", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Business Casual · Dinner", kommentar:"Feines Streifenmuster auf Grau – beides dezent gemustert, beide Muster stören sich nicht. Der Cream Loafer bindet alles zusammen. Wirkt wie ein europäischer Geschäftsmann im Urlaub.", kategorie:"Old Money" },
+  { id:9, oberteil:"Weißes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Business Casual · Dinner · Event", kommentar:"Das Karo-Muster der Hose ist der Star – das Weiß des Hemdes lässt es atmen. Taupe-Loafer passt perfekt zu den Grautönen der Hose. Klassisch, strukturiert, Old School British Eleganz.", kategorie:"Old Money" },
+  { id:10, oberteil:"Tommy Olive Leinenhemd", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Urlaub · Sommer · Casual Chic", kommentar:"Olive Leinen auf Hellblau – Naturton trifft kühles Blau. Diese Kombi wirkt mühelos elegant, wie man sich das bei einem Urlaubstag auf Ischia vorstellt. Cream-Loafer rundet perfekt ab.", kategorie:"Old Money" },
+
+  // ═══════════════════════════════════════
+  // HEMD – Elegante & smarte Looks
+  // ═══════════════════════════════════════
+  { id:11, oberteil:"Weißes Hemd", hose:"Beige Chino", schuh:"BOSS Taupe Loafer", jacke:"Braune Lederjacke", bewertung:9.5, anlass:"Abend · Bar · Date", kommentar:"Das weiß-beige Basis-Outfit bekommt durch die cognacfarbene Lederjacke Tiefe und Maskulinität. Taupe-Loafer verbindet Jacke und Hose farblich. Ein Look der Wärme und Stärke ausstrahlt.", kategorie:"Hemd" },
+  { id:12, oberteil:"Hellblaues Hemd", hose:"Beige Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Casual Elegant · Dinner · Sommer", kommentar:"Klassisches Hellblau-Beige mit Taupe Loafer – eine der sichersten Farbkombinationen überhaupt. Frisch, warm, einladend. Funktioniert von Lunch bis Dinner ohne Übertreibung.", kategorie:"Hemd" },
+  { id:13, oberteil:"Tommy Olive Leinenhemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Business Casual · Herbst", kommentar:"Olive und Dunkelgrau-Karo ist eine ungewöhnliche aber starke Kombination. Das Leinen bringt Textur, das Karo Struktur. Taupe-Loafer hält es zusammen. Interessant ohne zu versuchen.", kategorie:"Hemd" },
+  { id:14, oberteil:"Schwarzes Hemd", hose:"Schwarze Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Abend · Bar · Dinner", kommentar:"All-Black mit Taupe-Loafer als einzigem Farbakzent – das ist maximale Eleganz durch minimalen Aufwand. Der Loafer verhindert dass der Look zu düster wirkt und gibt ihm einen luxuriösen Touch.", kategorie:"Hemd" },
+  { id:15, oberteil:"Schwarzes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"DC Weiße Sneaker", jacke:"Grau-grüne Lederjacke", bewertung:9.0, anlass:"Abend · Bar · City", kommentar:"Dunkle Töne mit weißem Sneaker-Kontrast und der Grau-grünen Vintage-Jacke – das ist Urban Premium. Der Weiß-Sneaker mit Gum-Sohle hebt den Look in die moderne Streetwear-Luxus-Zone.", kategorie:"Hemd" },
+  { id:16, oberteil:"Schwarzes Hemd", hose:"Hellgrau Melange Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Abend · Smart Casual", kommentar:"Starker Hell-Dunkel-Kontrast: Schwarz auf Hellgrau. Der Taupe-Loafer verbindet beide Pole elegant und wärmt den Look auf. Wirkt modern und durchdacht.", kategorie:"Hemd" },
+  { id:17, oberteil:"Weiß-gestreiftes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Business Casual · Dinner", kommentar:"Zwei Muster – Streifen und Karo – die beide in Weiß/Grau-Tönen bleiben und sich deshalb nicht beißen. Funktioniert weil die Farbpalette konsistent ist. Taupe-Loafer gibt dem Look Wärme.", kategorie:"Hemd" },
+  { id:18, oberteil:"Weiß-gestreiftes Hemd", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Sommer · Urlaub · Event", kommentar:"Klassische Riviera-Kombi: Streifen + Hellblau + Cream ist purer Sommer-Chic. Das Streifenhemd spielt mit dem Hellblau der Hose ohne zu kämpfen. Zeitlos und frisch.", kategorie:"Hemd" },
+  { id:19, oberteil:"Weiß-gestreiftes Hemd", hose:"Schwarze Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Abend · Smart Casual · Bar", kommentar:"Das Schwarz der Hose gibt dem eleganten Streifenhemd einen urbanen Kick. Taupe-Loafer bricht das Schwarz auf und verhindert einen zu formalen Eindruck. Vielseitiger Abend-Look.", kategorie:"Hemd" },
+  { id:20, oberteil:"Hellblaues Hemd", hose:"Schwarze Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Abend · Smart Casual", kommentar:"Eisblau auf Schwarz ist ein klassischer Kontrast – klar, stark und elegant. Der Taupe-Loafer ist der entscheidende Dritte: er wärmt den kühlen Look auf ohne die Eleganz zu brechen.", kategorie:"Hemd" },
+  { id:21, oberteil:"Hellblaues Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Business Casual · Smart Casual", kommentar:"Hellblau und Dunkelgrau-Karo – eine Kombi die in britischen Gentlemen-Clubs hängen könnte. Strukturiert, elegant, leicht distinguiert. Taupe-Loafer hält es modern.", kategorie:"Hemd" },
+
+  // ═══════════════════════════════════════
+  // POLO – Mediterranean & Smart Casual
+  // ═══════════════════════════════════════
+  { id:22, oberteil:"Tommy Dunkelpetrol Polo", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Smart Casual · Date", kommentar:"Dunkles Petrol auf Beige mit Cream-Loafer – das ist die beste Polo-Kombination in deinem Schrank. Der dunkle Polo auf der hellen Hose schafft einen edlen Kontrast, der Cream-Loafer macht es luxuriös.", kategorie:"Polo" },
+  { id:23, oberteil:"Tommy Dunkelpetrol Polo", hose:"Beige Chino", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.5, anlass:"Date · Dinner · Casual Chic", kommentar:"Petrol auf Beige mit Beige-Loafer – der Loafer nimmt sich zurück und lässt den Petrol-Polo strahlen. Sehr harmonisch, ruhig und hochwertig. Ein Look ohne schwache Stelle.", kategorie:"Polo" },
+  { id:24, oberteil:"Tommy Türkis Polo", hose:"Beige Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:10.0, anlass:"Sommer-Date · Sommerabend · Urlaub", kommentar:"Türkis ist die mutigere Farbe – auf Beige mit Taupe-Loafer wirkt sie trotzdem ultra-elegant. Das Türkis bringt Energie, Beige und Taupe halten es geerdet. Mediterran-luxuriöser Perfekt-Look.", kategorie:"Polo" },
+  { id:25, oberteil:"Tommy Türkis Polo", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Sommer · Beach Club · Urlaub", kommentar:"Türkis und Hellblau – zwei Wasserfarben in tonaler Schichtung. Sehr mediterran, sehr frisch. Der Cream-Loafer fungiert als neutraler Anker. Funktioniert perfekt am Tag oder frühen Abend.", kategorie:"Polo" },
+  { id:26, oberteil:"Tommy Türkis Polo", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Smart Casual · Dinner", kommentar:"Türkis auf Hellgrau – die kühle Grau-Basis lässt das Türkis brillieren ohne zu schreien. Cream-Loafer wärmt das Duo. Ausgereifter Look der zeigt dass man Farbe kann.", kategorie:"Polo" },
+  { id:27, oberteil:"Lacoste Blau-Türkis Polo", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Sommer · Urlaub · Dinner", kommentar:"Lacoste Blau-Türkis auf Beige mit Cream-Loafer – klassischer French-Riviera-Stil. Das lebhafte Blau-Türkis des Lacoste-Polos auf der neutralen Beige-Basis ist eine zeitlose Kombination.", kategorie:"Polo" },
+  { id:28, oberteil:"Lacoste Blau-Türkis Polo", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Sommer Casual · Urlaub", kommentar:"Blau-Türkis auf Hellblau – mutige Ton-in-Ton Kombi die durch die Farbähnlichkeit funktioniert. Der Cream-Loafer setzt den nötigen Kontrast. Entspannt und trotzdem durchdacht.", kategorie:"Polo" },
+  { id:29, oberteil:"Tommy Dunkelpetrol Polo", hose:"Schwarze Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Abendlook · Bar · Dinner", kommentar:"Dunkles Petrol auf Schwarz ist fast monochrom – fast. Der Taupe-Loafer ist die perfekte Unterbrechung: er trennt Polo und Hose visuell und gibt dem Look einen luxuriösen Abschluss.", kategorie:"Polo" },
+  { id:30, oberteil:"Tommy Dunkelpetrol Polo", hose:"Schwarze Chino", schuh:"DC Weiße Sneaker", jacke:"Grau-grüne Lederjacke", bewertung:10.0, anlass:"Abend · Bar · City · Event", kommentar:"Der stärkste Layered-Look: Petrol + Schwarz + weiße DC Sneaker + Grau-grüne Vintage-Jacke. Vier Elemente die perfekt harmonieren. Modern, maskulin, premium. Absoluter Hingucker-Look.", kategorie:"Polo" },
+  { id:31, oberteil:"Tommy Dunkelpetrol Polo", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Smart Casual · Dinner", kommentar:"Petrol auf Hellgrau mit Cream-Loafer – sehr hochwertige Farbkombination. Das Grau kühlt das Petrol ab, der Cream-Loafer wärmt das Gesamtbild wieder auf. Ausgereifter Dreiklang.", kategorie:"Polo" },
+  { id:32, oberteil:"Tommy Dunkelpetrol Polo", hose:"Schwarze Chino", schuh:"DC Weiße Sneaker", jacke:null, bewertung:9.5, anlass:"City · Abend · Casual", kommentar:"Petrol + Schwarz + weiße Sneaker: moderner Street-Luxury-Look ohne Jacke. Die DC Sneaker mit Gum-Sohle geben diesem eleganten Duo einen sportlichen, urbanen Charakter.", kategorie:"Polo" },
+
+  // ═══════════════════════════════════════
+  // SHIRT – Casual & Layered Looks
+  // ═══════════════════════════════════════
+  { id:33, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Casual Sommer · Urlaub · Tag", kommentar:"Ton-in-Ton Beige mit Streifentextur – das T-Shirt bringt genug Muster um interessant zu sein, Hose und Loafer halten alles ruhig. Entspannt und trotzdem hochwertig für heiße Sommertage.", kategorie:"Shirt" },
+  { id:34, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Hellblaue Bugatti Chino", schuh:"DC Weiße Sneaker", jacke:null, bewertung:9.0, anlass:"Casual Alltag · Reisen · Urlaub", kommentar:"Beige-Streifen auf Hellblau mit weißen Sneakern – eine frische, leichte Sommer-Kombi. Alles hell, alles leicht, alles passt zusammen. Der Navy-Kragen des T-Shirts greift das Blau der Hose auf.", kategorie:"Shirt" },
+  { id:35, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Schwarze Chino", schuh:"DC Weiße Sneaker", jacke:"Braune Lederjacke", bewertung:9.0, anlass:"City · Abend · Bar", kommentar:"Das neutrale T-Shirt wird durch Schwarz und Braun-Lederjacke maskulin eingerahmt. DC Sneaker geben den Streetwear-Touch. Ein Look der lässig wirkt aber klar durchdacht ist.", kategorie:"Shirt" },
+  { id:36, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Hellgrau Melange Hose", schuh:"DC Weiße Sneaker", jacke:"Grau-grüne Lederjacke", bewertung:8.5, anlass:"Casual · City · Tag", kommentar:"Grautöne durch alle Ebenen – T-Shirt, Hose, Jacke – mit weißen Sneakern als Basis. Urban, entspannt, konsistent in der Farbpalette. Die Grau-grüne Vintage-Jacke ist das Highlight.", kategorie:"Shirt" },
+  { id:37, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Casual Elegant · Dinner", kommentar:"Das schlichte T-Shirt balanciert die Musterlast der Karo-Hose perfekt aus. Wäre ein Hemd zu formal, ist das T-Shirt genau richtig. Taupe-Loafer hebt den Look ins Elegante.", kategorie:"Shirt" },
+
+  // ═══════════════════════════════════════
+  // OFFICE – Smart nicht steif
+  // ═══════════════════════════════════════
+  { id:38, oberteil:"Hellblaues Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Büro · Meeting · Business Casual", kommentar:"Klassiker des modernen Büro-Looks: Hellblau und Dunkelgrau-Karo sind professionell ohne steif zu wirken. Der Taupe-Loafer statt Schnürschuh signalisiert: ich weiß was ich tue, ohne mich anzustrengen.", kategorie:"Office" },
+  { id:39, oberteil:"Weißes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Büro · Kundentermin · Präsentation", kommentar:"Weißes Hemd auf Karo-Hose ist das verlässlichste Office-Outfit im Schrank. Wirkt kompetent und durchdacht. Taupe-Loafer statt Oxford-Schnürschuh hält es im modernen Smart-Casual-Bereich.", kategorie:"Office" },
+  { id:40, oberteil:"Weiß-gestreiftes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Büro · Meeting · Business Casual", kommentar:"Streifen und Karo – klingt riskant, funktioniert weil beide in Grau/Weiß-Tönen bleiben. Gibt dem Office-Look Charakter ohne von den Regeln abzuweichen. Zeigt Stilbewusstsein.", kategorie:"Office" },
+  { id:41, oberteil:"Hellblaues Hemd", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Büro · Casual Friday · Kreativ-Office", kommentar:"Der entspanntere Office-Look: Eisblau auf Hellgrau mit Cream-Loafer. Wirkt hochwertig und durchdacht aber nie overdressed. Perfekt für Offices wo Krawattenpflicht längst abgeschafft wurde.", kategorie:"Office" },
+  { id:42, oberteil:"Weißes Hemd", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Büro · Casual Friday · Kundentermin", kommentar:"Weiß und Hellgrau mit Cream-Loafer – clean, professionell, nie langweilig. Der Cream-Loafer macht den Unterschied zu einem banalen Office-Look. Einfach aber wirkungsvoll.", kategorie:"Office" },
+  { id:43, oberteil:"Tommy Olive Leinenhemd", hose:"Beige Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Casual Friday · Kreativ-Office · Sommer-Büro", kommentar:"Für das lockere Büro-Umfeld: Olive Leinen auf Beige ist entspannt genug für Casual Friday aber hochwertig genug um ernstgenommen zu werden. Taupe-Loafer hält es respektabel.", kategorie:"Office" },
+  { id:44, oberteil:"Hellblaues Hemd", hose:"Beige Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Büro · Sommer-Büro · Kundentermin", kommentar:"Hellblau und Beige ist die entspannteste Version eines Office-Looks – wirkt im Sommer besonders frisch. Taupe-Loafer statt Sneaker hält die nötige Professionalität ohne Steifheit.", kategorie:"Office" },
+  { id:45, oberteil:"Weiß-gestreiftes Hemd", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Büro · Casual Friday · Business Lunch", kommentar:"Das Streifenhemd auf Beige-Chino ist modern und gepflegt. Cream-Loafer gibt dem Look eine entspannte Qualität die zeigt: hier ist jemand der sich Gedanken macht ohne es zu übertreiben.", kategorie:"Office" },
+  { id:46, oberteil:"Schwarzes Hemd", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Büro · Meeting · Abendveranstaltung", kommentar:"Für das dunklere, urbanere Office: Schwarz auf Karo wirkt modern und selbstbewusst. Taupe-Loafer verhindert dass es zu düster wirkt. Direkt nach der Arbeit auch für Drinks geeignet.", kategorie:"Office" },
+  { id:47, oberteil:"Tommy Dunkelpetrol Polo", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:8.5, anlass:"Casual Friday · Kreativ-Büro · Startup", kommentar:"Polo statt Hemd im Büro – nur mit dem richtigen Polo. Dunkelpetrol ist edel genug um professionell zu wirken. Karo-Hose und Taupe-Loafer heben es über den rein sportlichen Bereich.", kategorie:"Office" },
+
+  // ═══════════════════════════════════════
+  // WEISSE MAC JEAN – neue Kombinationen
+  // (ergänzt Old Money & Sommer-Looks)
+  // ═══════════════════════════════════════
+  { id:48, oberteil:"Weißes Hemd", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Sommerabend · Dinner · Urlaub · Resort", kommentar:"All-White mit Cream-Loafer – das ist puristischer Italian-Summer-Stil auf höchstem Niveau. Totale Monochromie in Weiß wirkt mutig, clean und unglaublich hochwertig. Dein stärkster Old-Money-Look.", kategorie:"Old Money" },
+  { id:49, oberteil:"Tommy Olive Leinenhemd", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Date · Sommerterrasse", kommentar:"Olive auf Weiß ist einer der schönsten Farbkontraste im Sommer – natürlich und frisch zugleich. Cream-Loafer bindet beide Töne perfekt. Wirkt wie ein Outfit aus einem Luca Guadagnino Film.", kategorie:"Old Money" },
+  { id:50, oberteil:"Hellblaues Hemd", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Urlaub · Yacht · Beach Club", kommentar:"Hellblau auf Weiß ist nautischer Klassiker – Riviera, Capri, Yacht-Club. Mit Cream-Loafer bekommt es einen modernen Quiet-Luxury-Touch. Frisch, leicht, zeitlos.", kategorie:"Old Money" },
+  { id:51, oberteil:"Tommy Türkis Polo", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Beach Club · Resort · Sommer-Date", kommentar:"Türkis auf Weiß – maximaler Sommerlook. Die Weiße Hose lässt das Türkis des Polos voll strahlen. Cream-Loafer hält es elegant. Wirkt wie ein Editorial-Foto an der Côte d'Azur.", kategorie:"Polo" },
+  { id:52, oberteil:"Lacoste Blau-Türkis Polo", hose:"Weiße Mac Stoffhose", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.5, anlass:"Urlaub · Beach Club · Sommer", kommentar:"Blau-Türkis auf Weiß mit Beige-Loafer – French Riviera in drei Teilen. Das lebhafte Blau des Lacoste-Polos lebt auf der weißen Hose auf. Entspannt, frisch, mediterran.", kategorie:"Polo" },
+  { id:53, oberteil:"Weiß-gestreiftes Hemd", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Dinner · Urlaub · Sommerabend", kommentar:"Streifen auf Weiß – subtile Textur ohne Farbbruch. Das Streifenhemd bringt gerade genug Struktur damit der All-White-Look nicht zu klinisch wirkt. Sehr elegant.", kategorie:"Hemd" },
+  { id:54, oberteil:"Tommy Dunkelpetrol Polo", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Smart Casual · Abend", kommentar:"Dunkles Petrol auf Weiß ist maximaler Kontrast – dunkel auf hell, kühl auf warm. Einer der stärksten Polo-Looks überhaupt. Cream-Loafer verbindet Polo und Hose subtil.", kategorie:"Polo" },
+
+  // ═══════════════════════════════════════
+  // SHORTS – Sommer & Casual
+  // ═══════════════════════════════════════
+  { id:55, oberteil:"Weißes Hemd", hose:"Karo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:9.0, anlass:"Sommer · Urlaub · Tag · Brunch", kommentar:"Weißes Hemd auf Karo-Shorts mit weißen Sneakern – preppy aber modern. Das Hemd offen tragen für einen lässigen Layered-Look. Sehr sauber und durchdacht für einen Sommertag.", kategorie:"Shorts" },
+  { id:56, oberteil:"Tommy Türkis Polo", hose:"Karo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Sommer · Urlaub · Casual", kommentar:"Türkis-Polo auf Karo-Shorts in Hellgrau/Weiß – das Türkis gibt Energie, die Shorts halten es strukturiert. Weiße Sneaker mit Gum-Sohle runden es modern ab.", kategorie:"Shorts" },
+  { id:57, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Karo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Casual · Alltag · Sommer", kommentar:"Neutrales Streifen-Shirt auf Karo-Shorts – beide Muster in ähnlichen Tönen, deshalb kein Chaos. Entspannter Sommer-Look ohne Anstrengung.", kategorie:"Shorts" },
+  { id:58, oberteil:"Tommy Türkis Polo", hose:"Palmen Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:9.0, anlass:"Urlaub · Beach · Sommer-Party", kommentar:"Türkis-Polo auf den Palmen-Shorts – Blau trifft Blau, Gold-Palmen bringen Energie. Das Türkis greift den Grundton der Shorts auf. Echter Urlaubslook mit mediterranem Flair.", kategorie:"Shorts" },
+  { id:59, oberteil:"Weißes Hemd", hose:"Palmen Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Urlaub · Beach Club · Sommer-Party", kommentar:"Weißes Hemd auf den Palmen-Shorts lässt das Muster atmen und hält es elegant. Offen tragen über einem schlichten Unterhemd für den lässigsten Urlaubslook.", kategorie:"Shorts" },
+  { id:60, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Palmen Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.0, anlass:"Beach · Casual Urlaub", kommentar:"Das neutrale Streifen-Shirt balanciert das mutige Palmen-Muster aus. Streifen und Palmen funktionieren weil das T-Shirt die ruhigere Farbe trägt. Entspannt und spielerisch.", kategorie:"Shorts" },
+  { id:61, oberteil:"Tommy Dunkelpetrol Polo", hose:"Navy Leinen Shorts", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.5, anlass:"Sommerabend · Dinner · Beach Club · Date", kommentar:"Petrol-Polo auf Navy-Leinen mit Beige-Loafer – das ist der eleganteste Shorts-Look möglich. Dunkle Töne mit beigem Loafer wirkt auch im Sommer hochwertig. Für wenn Shorts doch etwas feiner sein soll.", kategorie:"Shorts" },
+  { id:62, oberteil:"Tommy Türkis Polo", hose:"Navy Leinen Shorts", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.0, anlass:"Sommerabend · Dinner · Resort", kommentar:"Türkis auf Navy ist ein klassischer Marinekontrast – hell auf dunkel. Beige-Loafer gibt dem Look Eleganz. Für Abende wo man in Shorts trotzdem stilbewusst auftreten möchte.", kategorie:"Shorts" },
+  { id:63, oberteil:"Weißes Hemd", hose:"Navy Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Sommerabend · Dinner · Urlaub", kommentar:"Weiß auf Navy mit Cream-Loafer – nautischer Dreiklang. Das ist Yacht-Club-Stil: klar, kontrastreich, elegant. Mit Leinen-Shorts statt Hose wirkt es aber nie overdressed.", kategorie:"Shorts" },
+  { id:64, oberteil:"Hellblaues Hemd", hose:"Navy Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Sommerabend · Beach Club · Urlaub", kommentar:"Tonale Blau-Kombi: Eisblau auf Navy mit Cream-Loafer. Die Farbabstufung von Hell zu Dunkel wirkt sophisticated und durchdacht. Einer der stilbewusstesten Shorts-Looks.", kategorie:"Shorts" },
+  { id:65, oberteil:"Beige-grau Gestreiftes T-Shirt", hose:"Hellbeige Cargo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Casual · Alltag · Sommer · Reisen", kommentar:"Neutrales Streifen-Shirt auf Hellgrau-Cargo mit weißen Sneakern – entspannter Sommer-Alltags-Look. Die Cargo-Taschen geben praktischen Charakter, alles bleibt in ruhigen Tönen.", kategorie:"Shorts" },
+  { id:66, oberteil:"Tommy Dunkelpetrol Polo", hose:"Hellbeige Cargo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:9.0, anlass:"Casual · City · Sommer", kommentar:"Dunkles Petrol auf Hellgrau mit weißen Sneakern – auch als Cargo-Shorts Kombi hochwertig. Der Petrol-Polo hebt die schlichten Cargo-Shorts ins Premium-Casual-Segment.", kategorie:"Shorts" },
+  { id:67, oberteil:"Tommy Türkis Polo", hose:"Hellbeige Cargo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Casual · Sommer · Alltag", kommentar:"Türkis bringt Farbe in den neutralen Cargo-Look. Hellgrau und Türkis harmonieren gut – beide kühl, beide frisch. Weiße Sneaker halten es clean und modern.", kategorie:"Shorts" },
+  { id:68, oberteil:"Weißes Hemd", hose:"Hellbeige Cargo Shorts", schuh:"DC Weiße Sneaker", jacke:null, bewertung:8.5, anlass:"Casual · Strand · Sommer", kommentar:"Weißes Hemd offen über einem T-Shirt auf den Hellbeige-Cargo-Shorts – entspanntester Sommer-Look. Helle Töne durchgehend, Sneaker mit Gum-Sohle passen perfekt.", kategorie:"Shorts" },
+
+  // WEISSE LEINEN SHORTS
+  { id:69, oberteil:"Tommy Dunkelpetrol Polo", hose:"Weiße Leinen Shorts", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:10.0, anlass:"Sommerabend · Dinner · Beach Club · Date", kommentar:"Dunkles Petrol auf weißem Leinen mit Beige-Loafer – maximaler Luxus-Kontrast im Shorts-Format. Die Weiße Leinen Shorts ist dein elegantestes Shorts-Piece, der Petrol-Polo macht es zum besten Shorts-Outfit.", kategorie:"Shorts" },
+  { id:70, oberteil:"Weißes Hemd", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Sommerabend · Dinner · Urlaub · Resort", kommentar:"All-White in Leinen – Italian-Summer-Stil pur. Hemd + Leinen-Shorts + Cream-Loafer wirkt wie ein Look von der Amalfiküste. Zeitlos elegant und trotzdem entspannt.", kategorie:"Shorts" },
+  { id:71, oberteil:"Tommy Olive Leinenhemd", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Date · Sommerterrasse", kommentar:"Olive Leinen auf weißem Leinen – gleiche Textur, schöner Farbkontrast. Natürlich, entspannt, hochwertig. Cream-Loafer verbindet beide Töne elegant.", kategorie:"Shorts" },
+  { id:72, oberteil:"Hellblaues Hemd", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Dinner · Urlaub · Beach Club", kommentar:"Hellblau auf Weiß mit Cream-Loafer – nautischer Klassiker im Shorts-Format. Riviera-Stil pur: frisch, leicht, zeitlos. Perfekt für warme Sommerabende.", kategorie:"Shorts" },
+  { id:73, oberteil:"Tommy Türkis Polo", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Beach Club · Resort · Sommer-Date", kommentar:"Türkis auf weißem Leinen mit Cream-Loafer – das leuchtet. Die Weiße Leinen Shorts lässt das Türkis voll strahlen. Eines der frischesten Sommer-Outfits im Schrank.", kategorie:"Shorts" },
+  { id:74, oberteil:"Weiß-gestreiftes Hemd", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.0, anlass:"Dinner · Urlaub · Sommerabend", kommentar:"Streifen auf weißem Leinen – minimale Textur-Variation in der All-White-Kombi. Das Streifenhemd bringt gerade genug Struktur damit der Look nicht zu monochrom wirkt.", kategorie:"Shorts" },
+  { id:75, oberteil:"Lacoste Blau-Türkis Polo", hose:"Weiße Leinen Shorts", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.0, anlass:"Urlaub · Beach Club · Sommer", kommentar:"Blau-Türkis auf weißem Leinen mit Beige-Loafer – French Riviera kompakt. Drei Teile, maximale mediterrane Wirkung. Entspannt aber trotzdem gepflegt.", kategorie:"Shorts" },
+
+  // ═══════════════════════════════════════
+  // BOSS NAVY POLO – neue Kombinationen
+  // ═══════════════════════════════════════
+  { id:76, oberteil:"BOSS Navy Polo", hose:"Beige Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Date · Smart Casual · Sommerabend", kommentar:"Navy auf Beige mit Cream-Loafer – das ist die Königskombi. Der offene Kragen des BOSS-Polos gibt dem Look eine mediterrane Eleganz die klassische Polos nicht erreichen. Dein neues bestes Polo-Outfit.", kategorie:"Old Money" },
+  { id:77, oberteil:"BOSS Navy Polo", hose:"Weiße Mac Stoffhose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Dinner · Urlaub · Resort · Rooftop", kommentar:"Navy auf Weiß mit Cream-Loafer – nautischer Dreiklang auf höchstem Niveau. Der offene Kragen macht es modern, die Farbkombi zeitlos. Absoluter Top-Look für Sommerabende.", kategorie:"Old Money" },
+  { id:78, oberteil:"BOSS Navy Polo", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Sommer · Dinner · Casual Chic", kommentar:"Dunkles Navy auf Hellblau – tonale Abstufung von dunkel nach hell. Mit Cream-Loafer als warmem Abschluss wirkt es sehr durchdacht und hochwertig. Moderne Riviera-Energie.", kategorie:"Old Money" },
+  { id:79, oberteil:"BOSS Navy Polo", hose:"Beige Chino", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.5, anlass:"Date · Casual Chic · Urlaub", kommentar:"Navy auf Beige mit Beige-Loafer – der Loafer tritt zurück und lässt den Navy-Polo dominieren. Sehr harmonisch, sehr elegant. Der offene Kragen des BOSS-Polos macht jeden Look automatisch besser.", kategorie:"Polo" },
+  { id:80, oberteil:"BOSS Navy Polo", hose:"Hellgrau Melange Hose", schuh:"BOSS Cream Loafer", jacke:null, bewertung:9.5, anlass:"Smart Casual · Dinner · Office", kommentar:"Navy auf Hellgrau mit Cream-Loafer – kühle, professionelle Farbkombination. Sehr sophisticated. Funktioniert auch im gehobenen Büro-Umfeld perfekt.", kategorie:"Old Money" },
+  { id:81, oberteil:"BOSS Navy Polo", hose:"Schwarze Chino", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.5, anlass:"Abend · Bar · Dinner", kommentar:"Navy auf Schwarz – fast monochrom aber nicht ganz. Der Taupe-Loafer ist der entscheidende Kontrapunkt: er wärmt das dunkle Duo auf und gibt ihm Eleganz ohne es aufzuhellen.", kategorie:"Polo" },
+  { id:82, oberteil:"BOSS Navy Polo", hose:"Dunkelgrau Karo Hose", schuh:"BOSS Taupe Loafer", jacke:null, bewertung:9.0, anlass:"Büro · Smart Casual · Business", kommentar:"Navy-Polo auf Karo-Hose ist ein starkes Office-Statement. Der offene Kragen hält es entspannt, die Karo-Hose gibt Struktur. Taupe-Loafer verbindet beide Stücke elegant.", kategorie:"Office" },
+  { id:83, oberteil:"BOSS Navy Polo", hose:"Weiße Leinen Shorts", schuh:"BOSS Cream Loafer", jacke:null, bewertung:10.0, anlass:"Sommerabend · Dinner · Beach Club", kommentar:"Navy auf weißem Leinen mit Cream-Loafer – das beste Shorts-Outfit im Schrank. Der BOSS-Polo mit offenem Kragen auf Weiß ist purer Sommer-Luxus. Wirkt wie ein Look von Saint-Tropez.", kategorie:"Shorts" },
+  { id:84, oberteil:"BOSS Navy Polo", hose:"Navy Leinen Shorts", schuh:"Hilfiger Beige Loafer", jacke:null, bewertung:9.0, anlass:"Sommer · Beach Club · Urlaub", kommentar:"Navy auf Navy – monochromer Ton-in-Ton-Look in Blau. Funktioniert weil beide Stücke unterschiedliche Texturen haben. Beige-Loafer setzt den nötigen hellen Kontrapunkt.", kategorie:"Shorts" },
+  { id:85, oberteil:"BOSS Navy Polo", hose:"Hellblaue Bugatti Chino", schuh:"BOSS Cream Loafer", jacke:"Braune Lederjacke", bewertung:9.5, anlass:"Abend · Bar · Übergangszeit", kommentar:"Navy-Polo + Hellblau-Chino + Braune Lederjacke + Cream-Loafer – vier Stücke die perfekt harmonieren. Die cognacfarbene Jacke wärmt den kühlen Navy/Blau-Look ideal auf.", kategorie:"Polo" },
+];
+
+const FILTERS = [
+  { label:"Schuh", key:"schuh", emoji:"👟" },
+  { label:"Oberteil", key:"oberteil", emoji:"👕" },
+  { label:"Hose", key:"hose", emoji:"👖" },
+  { label:"Jacke", key:"jacke", emoji:"🧥" },
+];
+const KATEGORIEN = ["Alle","Old Money","Office","Hemd","Polo","Shirt","Shorts"];
+let state = { filters: { schuh:null, oberteil:null, hose:null, jacke:null }, kategorie:"Alle", activeTab:null };
+
+function uniqueValues(key) {
+  return [...new Set(outfits.map(o => o[key]).filter(Boolean))].sort();
+}
+function ratingColor(r) {
+  if (r >= 10) return "#d4af37";
+  if (r >= 9.5) return "#c8a852";
+  if (r >= 9) return "#a0956e";
+  if (r >= 8.5) return "#8a8070";
+  return "#6b6b6b";
+}
+function cardClass(r) {
+  if (r >= 10) return "card gold";
+  if (r >= 9.5) return "card silver";
+  if (r >= 9) return "card bronze";
+  return "card base";
+}
+function getResults() {
+  let list = outfits;
+  if (state.kategorie !== "Alle") list = list.filter(o => o.kategorie === state.kategorie);
+  if (state.filters.schuh) list = list.filter(o => o.schuh === state.filters.schuh);
+  if (state.filters.oberteil) list = list.filter(o => o.oberteil === state.filters.oberteil);
+  if (state.filters.hose) list = list.filter(o => o.hose === state.filters.hose);
+  if (state.filters.jacke) list = list.filter(o => o.jacke === state.filters.jacke);
+  return [...list].sort((a,b) => b.bewertung - a.bewertung);
+}
+function resetAll() {
+  state.filters = { schuh:null, oberteil:null, hose:null, jacke:null };
+  state.kategorie = "Alle";
+  state.activeTab = null;
+  render();
+}
+function render() {
+  const results = getResults();
+  const activeCount = Object.values(state.filters).filter(Boolean).length;
+  document.getElementById('count-text').textContent = results.length + ' Kombination' + (results.length !== 1 ? 'en' : '') + ' · nach Bewertung sortiert';
+  document.getElementById('footer-text').textContent = outfits.length + ' OUTFITS · NACH BEWERTUNG SORTIERT';
+
+  // Kategorie
+  const katEl = document.getElementById('kategorie-chips');
+  katEl.innerHTML = '';
+  KATEGORIEN.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (state.kategorie === k ? ' active' : '');
+    btn.textContent = k;
+    btn.onclick = () => { state.kategorie = k; render(); };
+    katEl.appendChild(btn);
+  });
+
+  // Reset
+  const resetBtn = document.getElementById('reset-btn');
+  resetBtn.style.display = activeCount > 0 ? '' : 'none';
+  resetBtn.textContent = '✕ Zurücksetzen (' + activeCount + ')';
+  resetBtn.onclick = resetAll;
+
+  // Filter buttons
+  const filterBtns = document.getElementById('filter-btns');
+  filterBtns.innerHTML = '';
+  FILTERS.forEach(f => {
+    const btn = document.createElement('button');
+    const isOpen = state.activeTab === f.key;
+    const isSet = !!state.filters[f.key];
+    btn.className = 'filter-btn' + (isOpen ? ' open' : isSet ? ' set' : '');
+    btn.innerHTML = '<span>' + f.emoji + '</span><span>' + (state.filters[f.key] || f.label) + '</span>' + (isSet ? '<span style="font-size:10px;opacity:0.7">▾</span>' : '');
+    btn.onclick = () => { state.activeTab = state.activeTab === f.key ? null : f.key; render(); };
+    filterBtns.appendChild(btn);
+  });
+
+  // Dropdown
+  const ddContainer = document.getElementById('dropdown-container');
+  ddContainer.innerHTML = '';
+  if (state.activeTab) {
+    const dd = document.createElement('div');
+    dd.className = 'dropdown';
+    uniqueValues(state.activeTab).forEach(v => {
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (state.filters[state.activeTab] === v ? ' active' : '');
+      chip.textContent = v;
+      chip.onclick = () => { state.filters[state.activeTab] = state.filters[state.activeTab] === v ? null : v; state.activeTab = null; render(); };
+      dd.appendChild(chip);
+    });
+    ddContainer.appendChild(dd);
+  }
+
+  // Active summary
+  const summaryEl = document.getElementById('active-summary');
+  if (activeCount > 0) {
+    let html = '<div class="active-summary">';
+    Object.entries(state.filters).filter(([,v]) => v).forEach(([k,v]) => {
+      const f = FILTERS.find(f => f.key === k);
+      html += f.emoji + ' <strong>' + v + '</strong>&nbsp;&nbsp;';
+    });
+    html += '</div>';
+    summaryEl.innerHTML = html;
+  } else {
+    summaryEl.innerHTML = '';
+  }
+
+  // Cards
+  const cardsEl = document.getElementById('cards');
+  const emptyEl = document.getElementById('empty');
+  if (results.length === 0) {
+    cardsEl.innerHTML = '';
+    emptyEl.style.display = '';
+  } else {
+    emptyEl.style.display = 'none';
+    cardsEl.innerHTML = '';
+    results.forEach((outfit, i) => {
+      const card = document.createElement('div');
+      card.className = cardClass(outfit.bewertung);
+      card.style.animationDelay = (i * 0.04) + 's';
+      const pct = Math.round(((outfit.bewertung - 7) / 3) * 100);
+      const col = ratingColor(outfit.bewertung);
+      const tags = [{ emoji:'👕', val:outfit.oberteil }, { emoji:'👖', val:outfit.hose }, { emoji:'👟', val:outfit.schuh }];
+      if (outfit.jacke) tags.push({ emoji:'🧥', val:outfit.jacke });
+      card.innerHTML =
+        (outfit.bewertung >= 10 ? '<div class="top-badge">TOP OUTFIT</div>' : '') +
+        '<div class="card-meta"><span class="card-rank">#'+(i+1)+' · '+outfit.kategorie+'</span><span class="card-anlass">'+outfit.anlass+'</span></div>' +
+        '<div class="tags">'+tags.map(t=>'<span class="tag">'+t.emoji+' '+t.val+'</span>').join('')+'</div>' +
+        '<div class="rating-bar-wrap"><div class="rating-track"><div class="rating-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="rating-label" style="color:'+col+'">'+outfit.bewertung.toFixed(1)+'/10</span></div>' +
+        '<div class="kommentar">'+outfit.kommentar+'</div>';
+      cardsEl.appendChild(card);
+    });
+  }
+}
+</script>
+</body>
+</html>
